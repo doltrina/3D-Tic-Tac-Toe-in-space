@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Космические 3D Крестики-Нолики | Cosmic Tic-Tac-Toe</title>
+  <meta name="description" content="Эпические 3D крестики-нолики в космосе с Three.js, выбором сетки 3x3x3 и классической плоскости 3x3, туманностями, звёздами и умным ИИ.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Three.js + OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- HUD overlay -->
+  <div class="hud-layer">
+    <!-- Top Bar -->
+    <header class="cosmic-header">
+      <div class="title-group">
+        <h1 class="glitch-title" data-text="COSMIC 3D">COSMIC 3D</h1>
+        <span class="sub-badge">TACTICAL VOID</span>
+      </div>
+
+      <div class="hud-stats-group">
+        <div class="hud-card player-x-stat" id="stat-card-x">
+          <div class="stat-symbol">✦</div>
+          <div class="stat-text">
+            <span class="stat-label" id="label-p1">СВЕРХНОВАЯ (X)</span>
+            <span class="stat-val" id="score-p1">0</span>
+          </div>
+        </div>
+
+        <div class="hud-card tie-stat">
+          <div class="stat-symbol">⚖</div>
+          <div class="stat-text">
+            <span class="stat-label" id="label-draw">РАВНОВЕСИЕ</span>
+            <span class="stat-val" id="score-draw">0</span>
+          </div>
+        </div>
+
+        <div class="hud-card player-o-stat" id="stat-card-o">
+          <div class="stat-symbol">◎</div>
+          <div class="stat-text">
+            <span class="stat-label" id="label-p2">АНТИМАТЕРИЯ (O)</span>
+            <span class="stat-val" id="score-p2">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Room Code Badge (visible in LAN mode) -->
+      <div class="header-room-chip" id="header-room-chip" style="display: none;" title="Код текущей комнаты">
+        <span class="room-chip-dot"></span>
+        <span class="room-chip-label">КОМНАТА:</span>
+        <span class="room-chip-code" id="header-room-code">NOVA</span>
+      </div>
+
+      <!-- Turn Indicator embedded directly inside top header -->
+      <div class="header-turn-pill" id="turn-banner">
+        <span class="pulse-beacon"></span>
+        <span id="turn-banner-text">Ход: СВЕРХНОВАЯ (X)</span>
+      </div>
+
+      <div class="top-actions">
+        <button id="btn-main-menu" class="hud-icon-btn glow-home" title="Главное меню / Выбор режима" aria-label="Главное меню">🏠</button>
+        <button id="btn-lan-toggle" class="hud-icon-btn glow-lan" title="Сетевая игра / Код комнаты" aria-label="Сетевая игра">
+          <span class="lan-btn-content">🌐</span>
+          <span class="lan-status-beacon" id="lan-header-dot"></span>
+        </button>
+        <button id="btn-camera-reset" class="hud-icon-btn" title="Сбросить камеру" aria-label="Сброс камеры">🎥</button>
+        <button id="btn-sound-toggle" class="hud-icon-btn" title="Звук" aria-label="Звук">🔊</button>
+        <button id="btn-chat-toggle" class="hud-icon-btn glow-chat" title="Тактический чат" aria-label="Чат">
+          💬<span class="chat-badge" id="chat-unread-badge" style="display:none;">0</span>
+        </button>
+        <button id="btn-settings-toggle" class="hud-icon-btn" title="Настройки" aria-label="Настройки">⚙️</button>
+        <button id="btn-header-collapse" class="hud-icon-btn mobile-only-btn" title="Свернуть / Развернуть панель" aria-label="Свернуть панель">▲</button>
+      </div>
+    </header>
+
+    <!-- Floating Mobile Emote Signal Button & Flyout Panel -->
+    <button id="btn-mobile-emotes-toggle" class="btn-mobile-emotes-toggle" aria-label="Сигналы" title="Отправить сигнал">+</button>
+    <div id="mobile-emotes-panel" class="mobile-emotes-panel">
+      <button class="mobile-emote-btn emote-pill" data-emote="🚀" title="Взлёт!">🚀</button>
+      <button class="mobile-emote-btn emote-pill" data-emote="💥" title="Удар!">💥</button>
+      <button class="mobile-emote-btn emote-pill" data-emote="🧠" title="Гениальный ход!">🧠</button>
+      <button class="mobile-emote-btn emote-pill" data-emote="⚡" title="Молния!">⚡</button>
+      <button class="mobile-emote-btn emote-pill" data-emote="👑" title="Корона!">👑</button>
+      <button class="mobile-emote-btn emote-pill" data-emote="🛸" title="Аномалия!">🛸</button>
+      <button class="mobile-emote-btn emote-pill" data-emote="🔥" title="Огонь!">🔥</button>
+      <button class="mobile-emote-btn emote-pill" data-emote="🎯" title="Точно в цель!">🎯</button>
+    </div>
+
+    <!-- Quick action footer & Controls Hint (Bottom of screen) -->
+    <footer class="cosmic-footer">
+      <div class="footer-buttons">
+        <button id="btn-new-round" class="action-btn glow-cyan">
+          <span>⚡ НОВЫЙ РАУНД</span>
+        </button>
+        <button id="btn-layer-filter" class="action-btn glow-purple" title="Переключение видимости слоев в кубе">
+          <span id="layer-btn-text">👁 ВСЕ СЛОИ (Z)</span>
+        </button>
+      </div>
+
+      <!-- Quick cosmic reactions/emotes -->
+      <div class="hud-emote-bar" id="hud-emote-bar">
+        <span class="emote-hint-label">СИГНАЛ:</span>
+        <button class="emote-pill" data-emote="🚀" title="Взлёт!">🚀</button>
+        <button class="emote-pill" data-emote="💥" title="Удар!">💥</button>
+        <button class="emote-pill" data-emote="🧠" title="Гениальный ход!">🧠</button>
+        <button class="emote-pill" data-emote="⚡" title="Молния!">⚡</button>
+        <button class="emote-pill" data-emote="👑" title="Корона!">👑</button>
+        <button class="emote-pill" data-emote="🛸" title="Аномалия!">🛸</button>
+      </div>
+
+      <div class="guide-tip">
+        <span>🖱 ЛКМ / Тап: сделать ход &bull; Перетаскивание: вращение куба &bull; Зум: колесо / щипок</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Settings Slide-over Drawer / Modal -->
+  <aside class="settings-drawer" id="settings-drawer">
+    <div class="drawer-header">
+      <h2>ПАРАМЕТРЫ МИССИИ</h2>
+      <button id="btn-close-settings" class="close-x">&times;</button>
+    </div>
+
+    <div class="drawer-content">
+      <!-- Game Mode -->
+      <div class="param-group">
+        <label class="param-title">РЕЖИМ БИТВЫ</label>
+        <div class="segmented-control" id="mode-control">
+          <button class="seg-btn active" data-mode="pvp">
+            <span>👥 1v1 Экран</span>
+          </button>
+          <button class="seg-btn" data-mode="lan">
+            <span>🌐 Кооп LAN</span>
+          </button>
+          <button class="seg-btn" data-mode="ai-easy">
+            <span>🤖 Дроид</span>
+          </button>
+          <button class="seg-btn" data-mode="ai-hard">
+            <span>🧠 ИИ Hard</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cosmic Theme / Galaxy -->
+      <div class="param-group">
+        <label class="param-title">СЕКТОР ГАЛАКТИКИ (ТЕМА)</label>
+        <div class="theme-grid" id="theme-control">
+          <button class="theme-btn active" data-theme="neon-deep">
+            <span class="theme-color" style="background: linear-gradient(135deg, #00f0ff, #ff007f);"></span>
+            <span>Неоновый Небула</span>
+          </button>
+          <button class="theme-btn" data-theme="solar-flare">
+            <span class="theme-color" style="background: linear-gradient(135deg, #ff8c00, #ff0055);"></span>
+            <span>Солнечная Вспышка</span>
+          </button>
+          <button class="theme-btn" data-theme="alien-matrix">
+            <span class="theme-color" style="background: linear-gradient(135deg, #00ff88, #0088ff);"></span>
+            <span>Аномалия Бездны</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Figures Style -->
+      <div class="param-group">
+        <label class="param-title">ФОРМА 3D СИМВОЛОВ</label>
+        <div class="segmented-control" id="figures-control">
+          <button class="seg-btn active" data-fig="cosmic">
+            <span>Кристалл & Сатурн</span>
+          </button>
+          <button class="seg-btn" data-fig="classic">
+            <span>3D Крест & Тор</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- First Move -->
+      <div class="param-group">
+        <label class="param-title">ИНИЦИАТИВА (ПЕРВЫЙ ХОД)</label>
+        <div class="segmented-control" id="first-turn-control">
+          <button class="seg-btn active" data-turn="X">
+            <span>Сверхновая [X]</span>
+          </button>
+          <button class="seg-btn" data-turn="O">
+            <span>Антиматерия [O]</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Center Cell 3D Toggle -->
+      <div class="param-group" id="center-cell-group">
+        <label class="param-title">ЦЕНТР КУБА (ЯДРО 3D)</label>
+        <div class="segmented-control" id="center-cell-control">
+          <button class="seg-btn" data-center="allow">
+            <span>Включён</span>
+          </button>
+          <button class="seg-btn active" data-center="block">
+            <span>🚫 Заблокирован</span>
+          </button>
+        </div>
+        <span class="param-subhint">Запрещает ход в центр 3D куба (ячейка 13), исключая имбаланс</span>
+      </div>
+
+      <!-- Speed & Visuals -->
+      <div class="param-group">
+        <label class="param-title">СКОРОСТЬ ВРАЩЕНИЯ ЗВЕЗД</label>
+        <input type="range" id="range-stars-speed" min="0" max="100" value="30" class="cosmic-range">
+      </div>
+
+      <div class="param-group">
+        <button id="btn-reset-scores" class="btn-danger-outline">
+          СБРОСИТЬ ВСЮ СТАТИСТИКУ
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Winner Modal -->
+  <div class="cosmic-modal-overlay" id="victory-modal">
+    <div class="cosmic-modal-box">
+      <div class="portal-light"></div>
+      <div class="modal-halo" id="modal-glow"></div>
+      <div class="modal-icon" id="modal-winner-icon">🏆</div>
+      <h2 class="modal-headline" id="modal-winner-title">ПОБЕДА!</h2>
+      <p class="modal-subtext" id="modal-winner-desc">Сверхновая подчинила себе измерение!</p>
+      <div class="modal-btn-row">
+        <button id="modal-btn-again" class="modal-confirm-btn">ПРОДОЛЖИТЬ БИТВУ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Emote Particles Canvas/Layer -->
+  <div id="floating-emotes-container" class="floating-emotes-layer"></div>
+
+  <!-- START / MAIN MENU MODAL -->
+  <div class="cosmic-modal-overlay active" id="main-menu-modal">
+    <div class="cosmic-modal-box main-menu-box">
+      <div class="portal-light"></div>
+      <div class="modal-halo" style="background: radial-gradient(circle, rgba(0, 240, 255, 0.4) 0%, transparent 70%);"></div>
+
+      <div class="menu-header">
+        <div class="menu-badge">TACTICAL VOID • 3D TIC-TAC-TOE</div>
+        <h1 class="menu-main-title glitch-title" data-text="COSMIC 3D">COSMIC 3D</h1>
+        <p class="menu-subtext">Выберите режим сражения в космическом измерении</p>
+
+        <!-- Player Nickname Box -->
+        <div class="menu-nickname-box">
+          <label class="nickname-label" for="input-player-nickname">ВАШ ПОЗЫВНОЙ (НИКНЕЙМ):</label>
+          <div class="nickname-input-group">
+            <input type="text" id="input-player-nickname" class="cosmic-input nickname-input" placeholder="Позывной пилота" maxlength="18" />
+            <button id="btn-random-nickname" class="action-btn glow-cyan btn-sm-random" title="Случайный позывной">🎲 Случайный</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Primary Mode Cards -->
+      <div class="menu-modes-grid" id="menu-primary-modes">
+        <button class="menu-mode-card glow-cyan" id="menu-btn-pvp">
+          <div class="mode-card-icon">👥</div>
+          <div class="mode-card-info">
+            <span class="mode-card-title">НА ОДНОМ ЭКРАНЕ</span>
+            <span class="mode-card-desc">Классическая дуэль 1 на 1 по очереди</span>
+          </div>
+          <span class="mode-card-arrow">➜</span>
+        </button>
+
+        <button class="menu-mode-card glow-magenta" id="menu-btn-lan-flow">
+          <div class="mode-card-icon">🌐</div>
+          <div class="mode-card-info">
+            <span class="mode-card-title">ИГРА ПО СЕТИ (LAN)</span>
+            <span class="mode-card-desc">Подключение по коду комнаты или QR-коду с телефона</span>
+          </div>
+          <span class="mode-card-arrow">➜</span>
+        </button>
+
+        <button class="menu-mode-card glow-purple" id="menu-btn-ai-easy">
+          <div class="mode-card-icon">🤖</div>
+          <div class="mode-card-info">
+            <span class="mode-card-title">ПРОТИВ БОТА (ЛЕГКИЙ)</span>
+            <span class="mode-card-desc">Тренировочный дроид для разминки</span>
+          </div>
+          <span class="mode-card-arrow">➜</span>
+        </button>
+
+        <button class="menu-mode-card glow-gold" id="menu-btn-ai-hard">
+          <div class="mode-card-icon">🧠</div>
+          <div class="mode-card-info">
+            <span class="mode-card-title">КВАНТОВЫЙ ИИ (ХАРД)</span>
+            <span class="mode-card-desc">Продвинутый пространственный расчет ходов</span>
+          </div>
+          <span class="mode-card-arrow">➜</span>
+        </button>
+      </div>
+
+      <!-- LAN Flow Sub-Panel (Embedded directly into the Start Menu) -->
+      <div class="menu-lan-subpanel" id="menu-lan-subpanel" style="display: none;">
+        <div class="lan-nav-tabs">
+          <button class="lan-tab-btn active" id="tab-btn-create-room">
+            <span>⚡ СОЗДАТЬ ИГРУ (ХОСТ)</span>
+          </button>
+          <button class="lan-tab-btn" id="tab-btn-join-room">
+            <span>🔑 ПОДКЛЮЧИТЬСЯ ПО КОДУ</span>
+          </button>
+        </div>
+
+        <!-- View 1: Create Host Room -->
+        <div class="lan-tab-view active" id="view-host-room">
+          <div class="room-code-banner">
+            <span class="room-code-title">ВАШ КОД КОМНАТЫ:</span>
+            <div class="room-code-badge-large">
+              <span class="room-code-text" id="host-room-code-val">NOVA</span>
+              <button id="btn-copy-room-code" class="btn-copy-chip" title="Скопировать только код">📋 Копировать</button>
+              <button id="btn-regen-room-code" class="btn-icon-subtle" title="Сгенерировать другой код">🔄</button>
+            </div>
+            <p class="room-code-hint">Другой игрок может ввести этот код или просто сосканировать QR ниже:</p>
+          </div>
+
+          <div class="lan-qr-section-compact">
+            <div class="lan-qr-frame">
+              <img id="host-qr-image" alt="QR-код для подключения" src="" />
+              <div id="host-qr-fallback" class="qr-fallback-text" style="display:none;"></div>
+            </div>
+            <div class="qr-details">
+              <span class="qr-subtext-bold">📷 Наведите камеру телефона</span>
+              <span class="qr-subtext-muted">Телефон СРАЗУ подключится к вашей комнате без ввода кодов!</span>
+              <div class="lan-url-chip">
+                <span id="host-direct-url">http://192.168.1.8:3000/?room=NOVA</span>
+                <button id="btn-copy-direct-url" class="btn-copy-chip-mini" title="Скопировать ссылку">📋 Ссылка</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="host-turn-selection-box">
+            <span class="host-turn-label">КТО ХОДИТ ПЕРВЫМ:</span>
+            <div class="segmented-control host-turn-control" id="host-first-turn-control">
+              <button class="seg-btn active" data-turn="X">
+                <span>✦ Хост (Сверхновая X)</span>
+              </button>
+              <button class="seg-btn" data-turn="O">
+                <span>◎ Гость (Антиматерия O)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="host-turn-selection-box" id="host-center-selection-box">
+            <span class="host-turn-label">ЦЕНТР КУБА (ЯДРО 3D):</span>
+            <div class="segmented-control host-turn-control" id="host-center-cell-control">
+              <button class="seg-btn" data-center="allow">
+                <span>Включён</span>
+              </button>
+              <button class="seg-btn active" data-center="block">
+                <span>🚫 Заблокирован</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- LAN 2-Player Readiness Lobby Card -->
+          <div class="lan-ready-lobby-card" id="lan-ready-lobby-card">
+            <div class="lobby-player-row" id="lobby-row-host">
+              <div class="lobby-player-meta">
+                <span class="lobby-player-role role-badge-x">✦ ХОСТ (X)</span>
+                <span class="lobby-player-nick" id="lobby-nick-host">Хост</span>
+              </div>
+              <span class="lobby-ready-status not-ready" id="lobby-ready-badge-host">⚪ Не готов</span>
+            </div>
+            <div class="lobby-player-divider"></div>
+            <div class="lobby-player-row" id="lobby-row-guest">
+              <div class="lobby-player-meta">
+                <span class="lobby-player-role role-badge-o">◎ ГОСТЬ (O)</span>
+                <span class="lobby-player-nick" id="lobby-nick-guest">Ожидание...</span>
+              </div>
+              <span class="lobby-ready-status not-ready" id="lobby-ready-badge-guest">⚪ Не готов</span>
+            </div>
+          </div>
+
+          <div class="lan-host-status" id="host-waiting-status">
+            <span class="lan-beacon waiting" id="lobby-waiting-beacon"></span>
+            <span id="host-waiting-text">Ожидание подключения второго игрока...</span>
+          </div>
+
+          <div class="menu-action-buttons">
+            <button id="btn-lan-ready" class="modal-confirm-btn glow-cyan btn-ready-toggle">
+              <span id="btn-ready-text">⚡ ГОТОВ К БИТВЕ</span>
+            </button>
+            <button id="btn-lan-back-to-modes" class="modal-secondary-btn">
+              ⬅ Назад в меню
+            </button>
+          </div>
+        </div>
+
+        <!-- View 2: Join by Room Code -->
+        <div class="lan-tab-view" id="view-join-room">
+          <div class="join-code-box">
+            <label class="join-input-label" for="input-join-room-code">ВВЕДИТЕ КОД ХОСТА:</label>
+            <div class="join-input-row">
+              <input type="text" id="input-join-room-code" class="cosmic-input room-code-input-large" placeholder="НАПРИМЕР: NOVA" maxlength="16" autofocus />
+            </div>
+            <p class="join-subhint">Код отображается на экране хоста (компьютера или телефона, создавшего игру).</p>
+
+            <!-- Advanced IP Host Toggle for different subnets if needed -->
+            <details class="lan-advanced-details">
+              <summary class="advanced-summary">🔧 Настроить IP хоста вручную (если нужно)</summary>
+              <div class="advanced-ip-fields">
+                <input type="text" id="input-join-custom-ip" class="cosmic-input" placeholder="IP адрес хоста (например, 192.168.1.8:3000)" />
+              </div>
+            </details>
+
+            <div id="join-feedback-msg" class="join-feedback-msg"></div>
+
+            <div class="menu-action-buttons">
+              <button id="btn-submit-join-code" class="modal-confirm-btn glow-magenta">
+                🚀 ПОДКЛЮЧИТЬСЯ К ХОСТУ
+              </button>
+              <button id="btn-join-back-to-modes" class="modal-secondary-btn">
+                ⬅ Назад в меню
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIRECT JOIN CONNECTING TOAST / OVERLAY -->
+  <div class="connecting-toast-overlay" id="connecting-overlay" style="display: none;">
+    <div class="connecting-toast-box">
+      <div class="connecting-spinner"></div>
+      <h3 class="connecting-title">ПОДКЛЮЧЕНИЕ К ХОСТУ...</h3>
+      <p class="connecting-subtext">Комната: <span id="connecting-room-name" class="room-chip-highlight">NOVA</span></p>
+    </div>
+  </div>
+
+  <!-- LAN Multiplayer Modal (Also accessible via top 🌐 button) -->
+  <div class="cosmic-modal-overlay" id="lan-modal">
+    <div class="cosmic-modal-box lan-modal-box">
+      <button id="btn-close-lan" class="modal-corner-close" aria-label="Закрыть">&times;</button>
+      <div class="portal-light"></div>
+      <div class="modal-halo" style="background: radial-gradient(circle, rgba(0, 240, 255, 0.45) 0%, transparent 70%);"></div>
+      
+      <div class="modal-icon">🌐</div>
+      <h2 class="modal-headline">СЕТЕВАЯ ИГРА (LAN)</h2>
+      <p class="modal-subtext">Сражайтесь с двух устройств в одной Wi-Fi сети</p>
+
+      <!-- Status Card -->
+      <div class="lan-status-card" id="lan-status-card">
+        <div class="lan-status-row">
+          <span class="lan-beacon" id="lan-modal-beacon"></span>
+          <span class="lan-status-text" id="lan-modal-status">Определение сети...</span>
+        </div>
+        <div class="lan-role-tag" id="lan-modal-role">РОЛЬ: НЕ ПОДКЛЮЧЕН</div>
+      </div>
+
+      <!-- Current Room Info & QR -->
+      <div class="lan-box-section">
+        <div class="lan-section-heading">
+          <span class="badge-num">1</span>
+          <span>ТЕКУЩАЯ КОМНАТА И QR-КОД ДЛЯ ТЕЛЕФОНА</span>
+        </div>
+
+        <div class="room-code-badge-modal">
+          <span class="room-code-title">КОД КОМНАТЫ:</span>
+          <span class="room-code-text" id="lan-modal-room-code">NOVA</span>
+          <button id="btn-copy-modal-code" class="btn-copy-chip">📋 Код</button>
+        </div>
+
+        <div class="lan-address-card">
+          <span class="lan-address-val" id="lan-display-url">http://192.168.1.8:3000/?room=NOVA</span>
+          <button id="btn-copy-lan-url" class="btn-copy-chip" title="Скопировать ссылку">
+            <span id="copy-btn-label">📋 Скопировать</span>
+          </button>
+        </div>
+
+        <!-- QR Code display -->
+        <div class="lan-qr-container">
+          <div class="lan-qr-frame">
+            <img id="lan-qr-image" alt="QR-код для подключения" src="" />
+            <div id="lan-qr-fallback" class="qr-fallback-text" style="display:none;"></div>
+          </div>
+          <span class="qr-subtext">📷 Наведите камеру телефона — подключится сразу!</span>
+        </div>
+      </div>
+
+      <!-- Direct Connect by Code Step -->
+      <div class="lan-box-section connect-box">
+        <div class="lan-section-heading">
+          <span class="badge-num">2</span>
+          <span>ИЛИ ПОДКЛЮЧИТЬСЯ К ДРУГОМУ ХОСТУ ПО КОДУ</span>
+        </div>
+        <div class="lan-input-group">
+          <input type="text" id="input-lan-room" class="cosmic-input room-input" placeholder="КОД ХОСТА" value="NOVA" />
+          <button id="btn-lan-connect-manual" class="action-btn glow-cyan btn-sm-connect">
+            ПОДКЛЮЧИТЬСЯ
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-btn-row">
+        <button id="btn-close-lan-confirm" class="modal-confirm-btn">ГОТОВО (К ИГРЕ)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESTART PROPOSAL MODAL (Accept / Decline) -->
+  <div class="cosmic-modal-overlay" id="prompt-restart-modal">
+    <div class="cosmic-modal-box prompt-box">
+      <div class="portal-light"></div>
+      <div class="modal-halo" style="background: radial-gradient(circle, rgba(0, 240, 255, 0.4) 0%, transparent 70%);"></div>
+      <div class="modal-icon">⚡</div>
+      <h2 class="modal-headline">ЗАПРОС НА РЕВАНШ</h2>
+      <p class="modal-subtext"><span id="restart-proposer-name" class="highlight-cyan">Соперник</span> предлагает начать новый раунд!</p>
+      
+      <div class="restart-first-turn-info" id="restart-first-turn-info" style="display: none;">
+        <span class="info-label">Инициатива первого хода:</span>
+        <span class="info-val" id="restart-proposed-turn-text">СВЕРХНОВАЯ (X)</span>
+      </div>
+
+      <div class="modal-btn-row">
+        <button id="btn-accept-restart" class="modal-confirm-btn glow-cyan">✓ ПРИНЯТЬ</button>
+        <button id="btn-decline-restart" class="modal-secondary-btn">✕ ОТКЛОНИТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESTART WAITING TOAST -->
+  <div class="restart-toast-container" id="toast-restart-waiting" style="display: none;">
+    <div class="restart-toast-box">
+      <div class="toast-spinner"></div>
+      <span class="toast-text" id="toast-restart-text">Ожидание согласия соперника на новый раунд...</span>
+      <button id="btn-cancel-restart" class="toast-cancel-btn" title="Отменить запрос">✕</button>
+    </div>
+  </div>
+
+  <!-- COSMIC IN-GAME TACTICAL CHAT DRAWER -->
+  <aside class="chat-drawer" id="chat-drawer">
+    <div class="chat-drawer-header">
+      <div class="chat-header-info">
+        <h2>💬 ТАКТИЧЕСКИЙ ЧАТ</h2>
+        <span class="chat-room-badge" id="chat-channel-badge">СВЯЗЬ: NOVA</span>
+      </div>
+      <button id="btn-close-chat" class="close-x">&times;</button>
+    </div>
+
+    <!-- Quick reaction chips -->
+    <div class="chat-quick-chips">
+      <button class="chat-chip-btn" data-msg="🚀 Поехали!">🚀 Поехали!</button>
+      <button class="chat-chip-btn" data-msg="👏 Отличный ход!">👏 Отличный ход!</button>
+      <button class="chat-chip-btn" data-msg="⚔️ Реванш?">⚔️ Реванш?</button>
+      <button class="chat-chip-btn" data-msg="👑 GG!">👑 GG!</button>
+      <button class="chat-chip-btn" data-msg="🧠 Гениально!">🧠 Гениально!</button>
+      <button class="chat-chip-btn" data-msg="🎯 Защищайся!">🎯 Защищайся!</button>
+    </div>
+
+    <!-- Message history -->
+    <div class="chat-messages-container" id="chat-messages-container">
+      <div class="chat-system-msg">
+        <span>🛰 Тактический канал связи открыт</span>
+      </div>
+    </div>
+
+    <!-- Chat input form -->
+    <div class="chat-input-bar">
+      <input type="text" id="input-chat-text" class="cosmic-input chat-input" placeholder="Передать сообщение..." maxlength="140" />
+      <button id="btn-send-chat" class="action-btn glow-cyan btn-chat-send" title="Отправить сообщение">➔</button>
+    </div>
+  </aside>
+
+  <script src="script.js"></script>
+</body>
+</html>
