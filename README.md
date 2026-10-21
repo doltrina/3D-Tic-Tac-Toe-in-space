@@ -49,11 +49,13 @@ npm install
 
 ### 3. Запуск
 
-#### Вариант А: Одной кнопкой (Windows)
-Просто запустите файл:
-```text
-start-lan-game.bat
-```
+#### Вариант А: Одной кнопкой / Скриптом (автоматически установит зависимости при первом запуске)
+- **Windows**: запустите `start-lan-game.bat` (двойным кликом).
+- **macOS / Linux**: в терминале выполните:
+  ```bash
+  chmod +x start-lan-game.sh
+  ./start-lan-game.sh
+  ```
 
 #### Вариант Б: Через терминал
 ```bash
@@ -112,4 +114,4 @@ krestiki_noliki_space_3D/
 
 ## 📜 Лицензия
 
-Проект распространяется под лицензией [ISC](file:///w:/Projects/krestiki_noliki_space_3D/package.json).
+Проект распространяется под лицензией [ISC](package.json).
